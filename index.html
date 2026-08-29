@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protein Price Tracker</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .sync-badge {
+            display: inline-block;
+            margin-top: 0.75rem;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.8rem;
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+            border-radius: 9999px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+        }
+
+        .brand-tag {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .product-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 1rem;
+        }
+
+        .price-section {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .price-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4ade80;
+        }
+
+        .store-btn {
+            background-color: var(--accent);
+            color: #0f172a;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background-color 0.2s;
+        }
+
+        .store-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .loading, .error {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Protein Price Tracker</h1>
+            <p>Live automated daily price intelligence</p>
+            <div id="sync-info" class="sync-badge">Checking sync status...</div>
+        </header>
+
+        <main id="product-grid" class="grid">
+            <div class="loading">Loading current product pricing...</div>
+        </main>
+    </div>
+
+    <script>
+        async function fetchPrices() {
+            const grid = document.getElementById('product-grid');
+            const syncInfo = document.getElementById('sync-info');
+
+            try {
+                // Fetch JSON data with a timestamp query to prevent browser caching
+                const response = await fetch('prices.json?t=' + new Date().getTime());
+                if (!response.ok) {
+                    throw new Error('Data file not generated yet.');
+                }
+
+                const data = await response.json();
+                syncInfo.textContent = `Last synchronized: ${data.last_synced}`;
+                grid.innerHTML = '';
+
+                data.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div>
+                            <div class="brand-tag">${escapeHtml(item.brand)}</div>
+                            <h2 class="product-title">${escapeHtml(item.name)}</h2>
+                        </div>
+                        <div class="price-section">
+                            <div class="price-value">${escapeHtml(item.price)}</div>
+                            <a href="${encodeURI(item.url)}" target="_blank" rel="noopener noreferrer" class="store-btn">View Store</a>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                grid.innerHTML = `
+                    <div class="error">
+                        <p>No pricing data available yet.</p>
+                        <p style="font-size:0.85rem; margin-top:0.5rem;">Run the GitHub Action workflow to generate prices.json.</p>
+                    </div>
+                `;
+                syncInfo.textContent = 'Status: Waiting for initial sync';
+            }
+        }
+
+        function escapeHtml(string) {
+            const div = document.createElement('div');
+            div.textContent = string;
+            return div.innerHTML;
+        }
+
+        fetchPrices();
+    </script>
+</body>
+</html>
