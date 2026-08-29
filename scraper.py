@@ -1,5 +1,6 @@
 import json
 import os
+import re # Add this import
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
@@ -19,23 +20,28 @@ PRODUCTS = [
 
 def extract_price(url, selector, fallback):
     headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
+        # Force UTF-8 encoding to help with the Rupee symbol
+        response.encoding = 'utf-8' 
         response.raise_for_status()
+        
         soup = BeautifulSoup(response.text, "html.parser")
         element = soup.select_one(selector)
         
         if element:
-            # Clean non-numeric text if needed, or take direct text
-            return element.get_text(strip=True)
-        return fallback
+            raw_text = element.get_text(strip=True)
+            
+            # Use regex to extract only the numeric value (ignores hidden marks and broken symbols)
+            match = re.search(r'[0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?', raw_text)
+            if match:
+                clean_number = match.group(0).replace(',', '')
+                return f"₹{clean_number}" # Manually prepend the clean Rupee symbol
+                
+            return raw_text
     except Exception as error:
         print(f"Scraping failed for {url}: {error}")
         return fallback
